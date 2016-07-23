@@ -31,27 +31,27 @@ C_FILES			+= heap_3.c
 C_FILES			+= port.c
 
 # Demo Objects
-C_FILES			+= blocktim.c
-C_FILES			+= countsem.c
-C_FILES			+= GenQTest.c
-C_FILES			+= QPeek.c
-C_FILES			+= recmutex.c
-C_FILES			+= BlockQ.c
-C_FILES			+= death.c
-C_FILES			+= dynamic.c
-C_FILES			+= flop.c
-C_FILES			+= integer.c
-C_FILES			+= PollQ.c
-C_FILES			+= semtest.c
+#C_FILES			+= blocktim.c
+#C_FILES			+= countsem.c
+#C_FILES			+= GenQTest.c
+#C_FILES			+= QPeek.c
+#C_FILES			+= recmutex.c
+#C_FILES			+= BlockQ.c
+#C_FILES			+= death.c
+#C_FILES			+= dynamic.c
+#C_FILES			+= flop.c
+#C_FILES			+= integer.c
+#C_FILES			+= PollQ.c
+#C_FILES			+= semtest.c
 
-C_FILES			+= AbortDelay.c
-C_FILES			+= EventGroupsDemo.c
-C_FILES			+= IntSemTest.c
-C_FILES			+= QueueSet.c
-C_FILES			+= QueueSetPolling.c
-C_FILES			+= QueueOverwrite.c
-C_FILES			+= TaskNotify.c
-C_FILES			+= TimerDemo.c
+#C_FILES			+= AbortDelay.c
+#C_FILES			+= EventGroupsDemo.c
+#C_FILES			+= IntSemTest.c
+#C_FILES			+= QueueSet.c
+#C_FILES			+= QueueSetPolling.c
+#C_FILES			+= QueueOverwrite.c
+#C_FILES			+= TaskNotify.c
+#C_FILES			+= TimerDemo.c
 
 # Main Object
 C_FILES			+= main.c
@@ -90,7 +90,7 @@ CWARNS += -Wmissing-prototypes
 
 #CWARNS += -Wno-unused-function
 
-CFLAGS += -m32
+#CFLAGS += -m32
 CFLAGS += -DDEBUG=1
 #CFLAGS += -g -DUSE_STDIO=1 -D__GCC_POSIX__=1
 CFLAGS += -g -UUSE_STDIO -D__GCC_POSIX__=1
@@ -98,7 +98,7 @@ ifneq ($(shell uname), Darwin)
 CFLAGS += -pthread
 endif
 
-# MAX_NUMBER_OF_TASKS = max pthreads used in the POSIX port. 
+# MAX_NUMBER_OF_TASKS = max pthreads used in the POSIX port.
 # Default value is 64 (_POSIX_THREAD_THREADS_MAX), the minimum number required by POSIX.
 CFLAGS += -DMAX_NUMBER_OF_TASKS=300
 
