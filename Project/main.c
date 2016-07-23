@@ -12,79 +12,71 @@
  * within this file.
  */
 void vApplicationMallocFailedHook( void );
+void vAssertCalled( unsigned long, const char * const);
 
-static void task1(void* pParams) {
-	TickType_t xNextWakeTime;
-	const TickType_t xCycleFrequency = pdMS_TO_TICKS( 100UL );
+#define     STRING_LENGTH   32
 
-	/* Initialise xNextWakeTime - this only needs to be done once. */
-	xNextWakeTime = xTaskGetTickCount();
+// The type funcVariable is used to provide the string which should be printed and the delay time
+typedef struct {
+    char str[STRING_LENGTH]; // string sent to UART (shown on screen if using QEMU)
+    unsigned int sleepTime;  // delay time (ms)
+} funcVariable;
 
-	/* Just to remove compiler warning. */
-	( void ) pParams;
+// The type taskVariable is used to create the task as well as send the funcVariable to the function called by task.
 
-	for(;;) {
+typedef struct {
+    char name[STRING_LENGTH];   // Task name
+    unsigned int stackSize;     // Stack size (byte)
+    unsigned int priority;      // Priority
+    funcVariable fVar;          // function Variable
+} taskVariable;
 
-		/* Place this task in the blocked state until it is time to run again. */
-		vTaskDelayUntil( &xNextWakeTime, xCycleFrequency );
+// to create the task with the pointer of task handle, pointer to array of task Variable, and number of task
+void createTask(xTaskHandle*, taskVariable*, int); 
+// The function used by the tasks created by createTask.
+void printTask(void*);
 
-		printf("This is task 1\n");
-		fflush(stdout);
+int main ( void ) {
 
-	}
-}
+    xTaskHandle myTaskHandle;
 
-static void task2(void* pParams) {
-	TickType_t xNextWakeTime;
-	const TickType_t xCycleFrequency = pdMS_TO_TICKS( 500UL );
+    taskVariable a[] = {{"Task1", 1000, 3, {"This is task 1\n", 100}},
+                        {"Task2", 100, 1, {"This is task 2\n", 500}}};
+                                 
+                                     
+    createTask(&myTaskHandle, a, sizeof(a)/sizeof(taskVariable));
+                                              
+    vTaskStartScheduler();
 
-	/* Initialise xNextWakeTime - this only needs to be done once. */
-	xNextWakeTime = xTaskGetTickCount();
-
-	/* Just to remove compiler warning. */
-	( void ) pParams;
-
-	for(;;) {
-
-		/* Place this task in the blocked state until it is time to run again. */
-		vTaskDelayUntil( &xNextWakeTime, xCycleFrequency );
-
-		printf("This is task 2\n");
-		fflush(stdout);
-
-	}
-}
-
-
-/*-----------------------------------------------------------*/
-
-int main ( void )
-{
-
-	xTaskCreate(task1,
-		"Task 1",
-		1000,
-		NULL,
-		tskIDLE_PRIORITY + 1,
-		NULL
-		);
-
-	xTaskCreate(task2,
-		"Task 2",
-		100,
-		NULL,
-		tskIDLE_PRIORITY + 1,
-		NULL
-		);
-
-	/* Start the scheduler itself. */
-	vTaskStartScheduler();
 
 	/* Should never get here unless there was not enough heap space to create
 	the idle and other system tasks. */
 	return 0;
 }
 /*-----------------------------------------------------------*/
+
+void createTask(xTaskHandle* myTaskHandle, taskVariable* task, int N){
+    BaseType_t xReturned;
+    for (int i=0; i<N; ++i) {
+        xReturned = xTaskCreate(printTask,                      // Pointer to the task entry function 
+        task[i].name,                   // name for the task
+        task[i].stackSize/sizeof(void*),// StackDepth, sizeof(void*) indicates if it is 2/4/8 byte
+        (void *) &task[i].fVar,         // variable needed by the created task.
+        task[i].priority,               // Task's priority
+        myTaskHandle);                  // Task handle
+        if (xReturned == errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY) {  // Print if tasks cannot be created.
+            puts("errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY for task\n");
+        }
+    }
+}
+
+void printTask(void* fVar) {
+    funcVariable* var = (funcVariable*) fVar;
+    for( ;; ){
+        printf("%s", var->str);
+        vTaskDelay(var->sleepTime/portTICK_RATE_MS);            // delay 
+    }
+}
 
 /*-----------------------------------------------------------*/
 
