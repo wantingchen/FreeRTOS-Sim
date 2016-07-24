@@ -18,14 +18,12 @@ void vAssertCalled( unsigned long, const char * const);
 void vApplicationTickHook( void );
 static void matrix_task(void);
 static void communication_task(void);
-static void prioritySet_task(void);
-static TickType_t communicationTime, communicationDuration;
-static TickType_t matrixTime, matrixDuration;
+static void matrix_adjust(void);
 
-xTaskHandle matrix_handle, communication_handle, priority_handle;
+xTaskHandle matrix_handle, communication_handle, adjust_handle;
 
 int main ( void ) {
-    xTaskCreate((pdTASK_CODE)prioritySet_task, (char *)"Priority", configMINIMAL_STACK_SIZE, NULL, 5, &priority_handle);
+    xTaskCreate((pdTASK_CODE)matrix_adjust, (char *)"Matrix_adjust", configMINIMAL_STACK_SIZE, NULL, 4, &adjust_handle);
     xTaskCreate((pdTASK_CODE)communication_task, (char *)"Communication", configMINIMAL_STACK_SIZE, NULL, 1, &communication_handle);
     xTaskCreate((pdTASK_CODE)matrix_task, (char *)"Matrix", 1000, NULL, 3, &matrix_handle);
     vTaskStartScheduler();
@@ -63,15 +61,10 @@ void vAssertCalled( unsigned long ulLine, const char * const pcFileName )
 }
 /*-----------------------------------------------------------*/
 
-static void prioritySet_task(void){
-    for(;;) {
-        if (communicationDuration > 1000) {
-            vTaskPrioritySet(communication_handle, 4);
-        } else if (communicationDuration < 200) {
-            vTaskPrioritySet(communication_handle, 2);
-        }
-        vTaskDelay(200);
-    }
+static void matrix_adjust(void){
+    //for(;;) {
+    vTaskPrioritySet(communication_handle, uxTaskPriorityGet(matrix_handle)+1);
+    vTaskSuspend(NULL);
 }
 static void matrix_task(void) {
     int i;
@@ -97,7 +90,6 @@ static void matrix_task(void) {
 		* In an embedded systems, matrix multiplication would block the CPU for a long time
 		* but since this is a PC simulator we must add one additional dummy delay.
 		*/
-        matrixTime = xTaskGetTickCount();
 		long simulationdelay;
 		for (simulationdelay = 0; simulationdelay<1000000000; simulationdelay++)
 			;
@@ -119,23 +111,18 @@ static void matrix_task(void) {
 			}
 		}
 		vTaskDelay(100);
-        matrixDuration = xTaskGetTickCount() - matrixTime;
-        printf("Matrix Time: %d\n",matrixDuration);  // Only for debug
-        fflush(stdout);
 	}
 }
 
 static void communication_task(void) {
     while (1) {
-        communicationTime = xTaskGetTickCount();
         printf("Sending data...\n");
         fflush(stdout);
         vTaskDelay(100);
         printf("Data sent!\n");
         fflush(stdout);
         vTaskDelay(100);
-        communicationDuration = xTaskGetTickCount() - communicationTime;
-        printf("Communication Time: %d\n",communicationDuration);  // Only for debug
+        printf("Time: %d\n",xTaskGetTickCount());  // Only for debug
         fflush(stdout);
     }
 }
