@@ -70,7 +70,7 @@ OBJS = $(patsubst %.c,%.o,$(C_FILES))
 # Warnings
 CWARNS += -W
 CWARNS += -Wall
-CWARNS += -Werror
+#CWARNS += -Werror
 CWARNS += -Wextra
 CWARNS += -Wformat
 CWARNS += -Wmissing-braces
@@ -102,7 +102,7 @@ endif
 # Default value is 64 (_POSIX_THREAD_THREADS_MAX), the minimum number required by POSIX.
 CFLAGS += -DMAX_NUMBER_OF_TASKS=300
 
-CFLAGS += $(INCLUDES) $(CWARNS) -O2
+CFLAGS += $(INCLUDES) $(CWARNS)
 
 ######## Makefile targets ########
 

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include "timers.h"
 
 #define SIZE 10
 #define ROW SIZE
@@ -17,16 +18,26 @@ void vApplicationMallocFailedHook( void );
 void vAssertCalled( unsigned long, const char * const);
 void vApplicationTickHook( void );
 static void matrix_task(void);
-static void communication_task(void);
-static void prioritySet_task(void);
-static TickType_t communicationTime, communicationDuration;
-static TickType_t matrixTime, matrixDuration;
 
-xTaskHandle matrix_handle, communication_handle, priority_handle;
-
+int iMatrix = 0, iMatrix_temp = 0, iMatrix_resTime = 0;
+int iAperiod = 0, iAperiod_temp = 0, iAperiod_resTime = 0;
+TimerHandle_t xTimer;
+void vTimerCallback(TimerHandle_t pxTimer);
+xTaskHandle matrix_handle, aperiodic_handle;
+static void aperiodic_task(void);
+long lExpireCounters = 0;
 int main ( void ) {
-    xTaskCreate((pdTASK_CODE)prioritySet_task, (char *)"Priority", configMINIMAL_STACK_SIZE, NULL, 5, &priority_handle);
-    xTaskCreate((pdTASK_CODE)communication_task, (char *)"Communication", configMINIMAL_STACK_SIZE, NULL, 1, &communication_handle);
+
+
+    xTimer = xTimerCreate("Timer", // Just a text name, not used by the RTOS kernel. 
+            pdMS_TO_TICKS( 5000 ), // The timer period in ticks, must be greater than 0. 
+                           pdTRUE, // The timers will auto-reload themselves when they expire. 
+                        (void*) 0,// The ID is used to store a count of the number of times the timer has expired. 
+                  vTimerCallback);// Each timer calls the same callback when it expires. 
+
+    if( xTimer == NULL ) puts("Not create!");
+    else if( xTimerStart( xTimer, 0 ) != pdPASS ) puts("Not active!");
+
     xTaskCreate((pdTASK_CODE)matrix_task, (char *)"Matrix", 1000, NULL, 3, &matrix_handle);
     vTaskStartScheduler();
 	/* Should never get here unless there was not enough heap space to create
@@ -63,17 +74,8 @@ void vAssertCalled( unsigned long ulLine, const char * const pcFileName )
 }
 /*-----------------------------------------------------------*/
 
-static void prioritySet_task(void){
-    for(;;) {
-        if (communicationDuration > 1000) {
-            vTaskPrioritySet(communication_handle, 4);
-        } else if (communicationDuration < 200) {
-            vTaskPrioritySet(communication_handle, 2);
-        }
-        vTaskDelay(200);
-    }
-}
 static void matrix_task(void) {
+
     int i;
 	double **a = (double **)pvPortMalloc(ROW * sizeof(double*));
 	for (i = 0; i < ROW; i++) a[i] = (double *)pvPortMalloc(COL * sizeof(double));
@@ -97,7 +99,7 @@ static void matrix_task(void) {
 		* In an embedded systems, matrix multiplication would block the CPU for a long time
 		* but since this is a PC simulator we must add one additional dummy delay.
 		*/
-        matrixTime = xTaskGetTickCount();
+        iMatrix = -1;
 		long simulationdelay;
 		for (simulationdelay = 0; simulationdelay<1000000000; simulationdelay++)
 			;
@@ -118,28 +120,56 @@ static void matrix_task(void) {
 				c[i][j] = sum;
 			}
 		}
+        iMatrix = 1;
 		vTaskDelay(100);
-        matrixDuration = xTaskGetTickCount() - matrixTime;
-        printf("Matrix Time: %d\n",matrixDuration);  // Only for debug
-        fflush(stdout);
 	}
 }
 
-static void communication_task(void) {
-    while (1) {
-        communicationTime = xTaskGetTickCount();
-        printf("Sending data...\n");
-        fflush(stdout);
-        vTaskDelay(100);
-        printf("Data sent!\n");
-        fflush(stdout);
-        vTaskDelay(100);
-        communicationDuration = xTaskGetTickCount() - communicationTime;
-        printf("Communication Time: %d\n",communicationDuration);  // Only for debug
-        fflush(stdout);
+void vTimerCallback(TimerHandle_t pxTimer) {
+    printf("Timer callback!\n");
+    xTaskCreate((pdTASK_CODE)aperiodic_task, (char *)"Aperiodic", configMINIMAL_STACK_SIZE, NULL, 4, &aperiodic_handle);
+    //long lArrayIndex;
+    const long xMaxExpiryCountBeforeStopping = 10;
+    /* Optionally do something if the pxTimer parameter is NULL. */
+    configASSERT(pxTimer);
+    /* Increment the number of times that pxTimer has expired. */
+    lExpireCounters += 1;
+    /* If the timer has expired 10 times then stop it from running. */
+    if (lExpireCounters == xMaxExpiryCountBeforeStopping) {
+        /* Do not use a block time if calling a timer API function from a
+        timer callback function, as doing so could cause a deadlock! */
+        xTimerStop(pxTimer, 0);
     }
 }
 
-/*
+
+static void aperiodic_task(void){
+    printf("Aperiodic task started!\n");
+    fflush(stdout);
+    long i;
+    //iAperiod = xTaskGetTickCount();
+    iAperiod = -1;
+    for (i = 0; i<1000000000; i++); //Dummy workload
+    printf("Aperiodic task done!\n");
+    fflush(stdout);
+    //iAperiod_resTime = xTaskGetTickCount() - iAperiod;
+    iAperiod = 1;
+    //printf("Aperiod response time: %d\n", iAperiod_resTime/portTICK_PERIOD_MS);
+    vTaskDelete(aperiodic_handle);
+}
+
 void vApplicationTickHook( void ) {
-}*/
+    if (iMatrix == -1) ++iMatrix_temp;
+    if (iMatrix_temp > 0 && iMatrix == 1) {
+        iMatrix_resTime = iMatrix_temp;
+        iMatrix_temp = 0;
+        printf("Matrix response time: %d\n", iMatrix_resTime);
+    }
+    
+    if (iAperiod == -1) ++iAperiod_temp;
+    if (iAperiod_temp > 0 && iAperiod == 1) {
+        iAperiod_resTime = iAperiod_temp;
+        iAperiod_temp = 0;
+        printf("Aperiod response time: %d\n", iAperiod_resTime/portTICK_PERIOD_MS);
+    }
+}
